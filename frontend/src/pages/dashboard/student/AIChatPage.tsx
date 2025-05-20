@@ -1,9 +1,10 @@
 // src/pages/dashboard/student/AIChatPage.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from '@/redux/store';
-import aiChatService from '@/services/aiChatService';
-import Button from '@/components/ui/Button';
+// Update the import path below to the correct relative path to your store file
+import { RootState } from '../../../redux/store';
+import aiChatService from '../../../services/aiChatService';
+import Button from '../../../components/ui/Button';
 import { 
   PaperAirplaneIcon, 
   ArrowPathIcon,
