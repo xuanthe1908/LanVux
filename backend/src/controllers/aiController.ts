@@ -85,7 +85,7 @@ export const chatWithAI = async (req: AIChatRequest, res: Response, next: NextFu
       );
 
       // Add relevant lecture content to context
-      context = lectureResult.rows.map(lecture => 
+      context = (lectureResult.rows as { title: string; description: string }[]).map((lecture) => 
         `Lecture: ${lecture.title}\nDescription: ${lecture.description}`
       );
     }
@@ -140,7 +140,14 @@ export const generateQuiz = async (req: QuizRequest, res: Response, next: NextFu
       return next(new AppError('Lecture not found', 404));
     }
 
-    const lecture = lectureResult.rows[0];
+    const lecture = lectureResult.rows[0] as {
+      id: string;
+      title: string;
+      description: string;
+      course_id: string;
+      teacher_id: string;
+      [key: string]: any;
+    };
 
     // Check if user is the teacher of the course or an admin
     if (req.user?.role === 'teacher' && lecture.teacher_id !== userId) {
@@ -189,7 +196,14 @@ export const extractConcepts = async (req: ConceptRequest, res: Response, next: 
       return next(new AppError('Lecture not found', 404));
     }
 
-    const lecture = lectureResult.rows[0];
+    const lecture = lectureResult.rows[0] as {
+      id: string;
+      title: string;
+      description: string;
+      course_id: string;
+      teacher_id: string;
+      [key: string]: any;
+    };
 
     // Check if user is enrolled in the course, is the teacher, or an admin
     if (req.user?.role === 'student') {
@@ -257,7 +271,16 @@ export const generateFeedback = async (req: FeedbackRequest, res: Response, next
       return next(new AppError('Submission not found', 404));
     }
 
-    const submission = submissionResult.rows[0];
+    const submission = submissionResult.rows[0] as {
+      id: string;
+      assignment_id: string;
+      submission_text: string;
+      assignment_title: string;
+      assignment_description: string;
+      course_id: string;
+      teacher_id: string;
+      [key: string]: any;
+    };
 
     // Check if user is the teacher of the course or an admin
     if (req.user?.role === 'teacher' && submission.teacher_id !== userId) {

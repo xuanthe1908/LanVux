@@ -1,4 +1,4 @@
-// src/routes/aiRoutes.ts
+// src/routes/aiRoutes.ts - FIXED VERSION
 import express from 'express';
 import { body, query } from 'express-validator';
 import aiController from '../controllers/aiController';
@@ -22,7 +22,8 @@ router.post(
     body('courseId').optional().isUUID().withMessage('Invalid course ID format'),
     validateRequest
   ],
-  aiController.chatWithAI
+  // Type assertion to fix Express route handler typing
+  aiController.chatWithAI as express.RequestHandler
 );
 
 /**
@@ -38,7 +39,7 @@ router.post(
     body('numQuestions').optional().isInt({ min: 1, max: 20 }).withMessage('Number of questions must be between 1 and 20'),
     validateRequest
   ],
-  aiController.generateQuiz
+  aiController.generateQuiz as express.RequestHandler
 );
 
 /**
@@ -52,7 +53,7 @@ router.post(
     body('lectureId').isUUID().withMessage('Invalid lecture ID format'),
     validateRequest
   ],
-  aiController.extractConcepts
+  aiController.extractConcepts as express.RequestHandler
 );
 
 /**
@@ -67,7 +68,7 @@ router.post(
     body('submissionId').isUUID().withMessage('Invalid submission ID format'),
     validateRequest
   ],
-  aiController.generateFeedback
+  aiController.generateFeedback as express.RequestHandler
 );
 
 /**
@@ -82,7 +83,7 @@ router.get(
     query('offset').optional().isInt({ min: 0 }).withMessage('Offset must be a non-negative integer'),
     validateRequest
   ],
-  aiController.getChatHistory
+  aiController.getChatHistory as express.RequestHandler
 );
 
 export default router;

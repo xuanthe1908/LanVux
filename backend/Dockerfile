@@ -1,23 +1,42 @@
-# Backend Dockerfile for TypeScript
+# Updated backend/Dockerfile
 FROM node:18-alpine
 
+# Set working directory
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY package*.json ./
-RUN npm install
+# Install dependencies for native modules
+RUN apk add --no-cache python3 make g++
 
-# Copy the rest of the application
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy source code
 COPY . .
 
-# Create an .env file if it doesn't exist
-RUN if [ ! -f .env ]; then touch .env; fi
+# Create uploads directory
+RUN mkdir -p uploads
 
-# Build TypeScript project
+# Build TypeScript
 RUN npm run build
 
-# Expose the port the app will run on
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+
+# Change ownership of app directory
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+# Expose port
 EXPOSE 4000
 
-# Command to run the application in development mode (with hot reloading)
-CMD ["npm", "run", "dev"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:4000/api/health || exit 1
+
+# Start application
+CMD ["npm", "start"]
+

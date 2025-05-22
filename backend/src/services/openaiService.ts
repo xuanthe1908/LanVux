@@ -1,4 +1,3 @@
-// src/services/openaiService.ts
 import { OpenAI } from 'openai';
 import config from '../config';
 import logger from '../utils/logger';
@@ -52,7 +51,7 @@ export const generateChatResponse = async (query: string, context: string[] = []
     });
 
     // Return the generated response
-    return response.choices[0].message.content.trim();
+    return response.choices[0].message.content?.trim() ?? '';
   } catch (error) {
     const err = error as Error;
     logger.error('OpenAI API error:', err.message);
@@ -84,7 +83,8 @@ export const extractKeyConcepts = async (content: string): Promise<string[]> => 
       response_format: { type: 'json_object' }
     });
 
-    const result = JSON.parse(response.choices[0].message.content) as ConceptsResponse;
+    const responseContent = response.choices[0].message.content ?? '{}';
+    const result = JSON.parse(responseContent) as ConceptsResponse;
     return result.concepts || [];
   } catch (error) {
     const err = error as Error;
@@ -126,7 +126,8 @@ export const generateQuizQuestions = async (content: string, numQuestions: numbe
       response_format: { type: 'json_object' }
     });
 
-    const result = JSON.parse(response.choices[0].message.content) as { questions: QuizQuestion[] };
+    const responseContent = response.choices[0].message.content ?? '{"questions":[]}';
+    const result = JSON.parse(responseContent) as { questions: QuizQuestion[] };
     return result.questions || [];
   } catch (error) {
     const err = error as Error;
@@ -162,7 +163,7 @@ export const generateAssignmentFeedback = async (assignmentDescription: string, 
       temperature: 0.7
     });
 
-    return response.choices[0].message.content.trim();
+    return response.choices[0].message.content?.trim() ?? '';
   } catch (error) {
     const err = error as Error;
     logger.error('OpenAI feedback generation error:', err.message);

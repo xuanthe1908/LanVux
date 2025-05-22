@@ -1,7 +1,7 @@
 // src/controllers/authController.ts
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../db';
 import config from '../config';
@@ -45,9 +45,11 @@ interface ChangePasswordRequest extends Request {
  * @param role - User role
  */
 const generateToken = (id: string, role: UserRole): string => {
-  return jwt.sign({ id, role }, config.jwtSecret, {
-    expiresIn: config.jwtExpiresIn,
-  });
+  const options: SignOptions = {
+    expiresIn: config.jwtExpiresIn as jwt.SignOptions['expiresIn'], 
+  };
+
+  return jwt.sign({ id, role }, config.jwtSecret as string, options);
 };
 
 /**
@@ -55,9 +57,11 @@ const generateToken = (id: string, role: UserRole): string => {
  * @param id - User ID
  */
 const generateRefreshToken = (id: string): string => {
-  return jwt.sign({ id }, config.jwtSecret, {
-    expiresIn: config.jwtRefreshExpiresIn,
-  });
+  const options: SignOptions = {
+    expiresIn: config.jwtRefreshExpiresIn as jwt.SignOptions['expiresIn'],
+  };
+
+  return jwt.sign({ id }, config.jwtSecret as string, options);
 };
 
 /**
@@ -86,7 +90,14 @@ export const register = async (req: RegisterRequest, res: Response, next: NextFu
       [userId, email, hashedPassword, role, firstName, lastName]
     );
 
-    const user = result.rows[0];
+    const user = result.rows[0] as {
+      id: string;
+      email: string;
+      password: string;
+      role: UserRole;
+      first_name: string;
+      last_name: string;
+    };
 
     // Generate tokens
     const token = generateToken(user.id, user.role);
@@ -126,7 +137,14 @@ export const login = async (req: LoginRequest, res: Response, next: NextFunction
       [email]
     );
 
-    const user = result.rows[0];
+    const user = result.rows[0] as {
+      id: string;
+      email: string;
+      password: string;
+      role: UserRole;
+      first_name: string;
+      last_name: string;
+    };
 
     // Check if user exists and password is correct
     if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -184,7 +202,7 @@ export const refreshToken = async (req: RefreshTokenRequest, res: Response, next
       return next(new AppError('User not found', 404));
     }
 
-    const user = result.rows[0];
+    const user = result.rows[0] as { id: string; role: UserRole };
 
     // Generate new access token
     const token = generateToken(user.id, user.role);
@@ -258,7 +276,15 @@ export const getMe = async (req: Request, res: Response, next: NextFunction): Pr
       return next(new AppError('User not found', 404));
     }
 
-    const user = result.rows[0];
+    const user = result.rows[0] as {
+      id: string;
+      email: string;
+      role: UserRole;
+      first_name: string;
+      last_name: string;
+      profile_picture: string | null;
+      bio: string | null;
+    };
 
     // Send response
     res.status(200).json({
@@ -303,7 +329,7 @@ export const changePassword = async (req: ChangePasswordRequest, res: Response, 
       return next(new AppError('User not found', 404));
     }
 
-    const user = result.rows[0];
+    const user = result.rows[0] as { password: string };
 
     // Check if current password is correct
     if (!(await bcrypt.compare(currentPassword, user.password))) {

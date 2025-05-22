@@ -1,4 +1,3 @@
-// src/config/index.ts
 import dotenv from 'dotenv';
 
 // Load environment variables from .env file
@@ -38,7 +37,7 @@ const config: Config = {
   redisUrl: process.env.REDIS_URL || '',
   
   // JWT
-  jwtSecret: process.env.JWT_SECRET || 'your_jwt_secret_key',
+  jwtSecret: process.env.JWT_SECRET || 'zTLVqLz4aXsYWEbGmE3ZpJ2snKUa0jNt',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1d',
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   

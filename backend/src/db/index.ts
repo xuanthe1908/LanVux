@@ -1,5 +1,5 @@
 // src/db/index.ts
-import { Pool, QueryResult } from 'pg';
+import { Pool, QueryResult, QueryResultRow } from 'pg';
 import config from '../config';
 import logger from '../utils/logger';
 
@@ -24,7 +24,7 @@ pool.on('error', (err) => {
  * @param params Query parameters
  * @returns Query result
  */
-export async function query<T>(text: string, params?: any[]): Promise<QueryResult<T>> {
+export async function query<T extends QueryResultRow>(text: string, params?: any[]): Promise<QueryResult<T>> {
   const start = Date.now();
   
   try {
