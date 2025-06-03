@@ -9,6 +9,7 @@ interface Config {
   databaseUrl: string;
   redisUrl: string;
   jwtSecret: string;
+  jwtRefreshSecret: string;
   jwtExpiresIn: string;
   jwtRefreshExpiresIn: string;
   openaiApiKey: string;
@@ -24,6 +25,24 @@ interface Config {
     windowMs: number;
     max: number;
   };
+  vnpay: {
+    tmnCode: string;
+    hashSecret: string;
+    url: string;
+    returnUrl: string;
+    apiUrl: string;
+  };
+  payment: {
+    enabled: boolean;
+    currency: string;
+    locale: string;
+  };
+  swagger: {
+    title: string;
+    description: string;
+    version: string;
+    serverUrl: string;
+  };
 }
 
 const config: Config = {
@@ -38,11 +57,12 @@ const config: Config = {
   
   // JWT
   jwtSecret: process.env.JWT_SECRET || 'zTLVqLz4aXsYWEbGmE3ZpJ2snKUa0jNt',
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || '5MmTDJmCRueB9Kt7VxWApFni3jLGN0oK',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1d',
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   
   // OpenAI
-  openaiApiKey: process.env.OPENAI_API_KEY || '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',
+  openaiApiKey: process.env.OPENAI_API_KEY || '',
   openaiModel: process.env.OPENAI_MODEL || 'gpt-4-turbo',
   
   // CORS
@@ -66,6 +86,30 @@ const config: Config = {
   rateLimit: {
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100 // limit each IP to 100 requests per windowMs
+  },
+
+  // VNPay Configuration
+  vnpay: {
+    tmnCode: process.env.VNPAY_TMN_CODE || '',
+    hashSecret: process.env.VNPAY_HASH_SECRET || '',
+    url: process.env.VNPAY_URL || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
+    returnUrl: process.env.VNPAY_RETURN_URL || 'http://localhost:3000/payment/vnpay-return',
+    apiUrl: process.env.VNPAY_API_URL || 'https://sandbox.vnpayment.vn/merchant_webapi/api/transaction'
+  },
+
+  // Payment Configuration
+  payment: {
+    enabled: process.env.PAYMENT_ENABLED === 'true',
+    currency: process.env.PAYMENT_CURRENCY || 'VND',
+    locale: process.env.PAYMENT_LOCALE || 'vn'
+  },
+
+  // Swagger Configuration
+  swagger: {
+    title: process.env.SWAGGER_TITLE || 'E-Learning API',
+    description: process.env.SWAGGER_DESCRIPTION || 'API documentation for E-Learning platform',
+    version: process.env.SWAGGER_VERSION || '1.0.0',
+    serverUrl: process.env.SWAGGER_SERVER_URL || 'http://localhost:4000'
   }
 };
 
@@ -76,6 +120,10 @@ if (!config.databaseUrl) {
 
 if (!config.openaiApiKey && config.environment !== 'test') {
   console.warn('Warning: OPENAI_API_KEY is not set. AI features will not work.');
+}
+
+if (!config.vnpay.tmnCode || !config.vnpay.hashSecret) {
+  console.warn('Warning: VNPay configuration is incomplete. Payment features will not work.');
 }
 
 export default config;
