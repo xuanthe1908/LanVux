@@ -1,7 +1,7 @@
 {
   "name": "e-learning-backend",
   "version": "1.2.0",
-  "description": "Backend for E-Learning platform",
+  "description": "Backend for E-Learning platform with MySQL",
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
@@ -10,8 +10,14 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "migrate": "ts-node src/scripts/migrate.ts",
+    "seed": "ts-node src/scripts/seed.ts",
+    "db:setup": "ts-node src/scripts/setup-database.ts",
+    "db:reset": "ts-node src/scripts/reset-database.ts"
   },
   "dependencies": {
     "@types/express-serve-static-core": "4.17.31",
@@ -28,8 +34,8 @@
     "moment": "^2.29.4",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.6.5",
     "openai": "^4.20.1",
-    "pg": "^8.11.3",
     "qs": "^6.11.2",
     "redis": "^4.6.10",
     "swagger-jsdoc": "^6.2.8",
@@ -46,7 +52,6 @@
     "@types/morgan": "^1.9.9",
     "@types/multer": "1.4.7",
     "@types/node": "^20.9.0",
-    "@types/pg": "^8.10.7",
     "@types/qs": "^6.9.9",
     "@types/supertest": "^2.0.16",
     "@types/swagger-jsdoc": "^6.0.4",
