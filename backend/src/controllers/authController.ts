@@ -1,4 +1,3 @@
-// src/controllers/authController.ts
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
@@ -39,71 +38,48 @@ interface ChangePasswordRequest extends Request {
   };
 }
 
-/**
- * Generate JWT token
- * @param id - User ID
- * @param role - User role
- */
 const generateToken = (id: string, role: UserRole): string => {
   const options: SignOptions = {
-    expiresIn: config.jwtExpiresIn as jwt.SignOptions['expiresIn'], 
+    expiresIn: config.jwtExpiresIn as jwt.SignOptions['expiresIn'],
   };
-
   return jwt.sign({ id, role }, config.jwtSecret as string, options);
 };
 
-/**
- * Generate refresh token
- * @param id - User ID
- */
 const generateRefreshToken = (id: string): string => {
   const options: SignOptions = {
     expiresIn: config.jwtRefreshExpiresIn as jwt.SignOptions['expiresIn'],
   };
-
   return jwt.sign({ id }, config.jwtSecret as string, options);
 };
 
-/**
- * Register a new user
- * @route POST /api/auth/register
- */
 export const register = async (req: RegisterRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { email, password, firstName, lastName, role = 'student' } = req.body;
 
-    // Check if user already exists
     const existingUser = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-
     if (existingUser.rows.length > 0) {
       return next(new AppError('User with this email already exists', 400));
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user
     const userId = uuidv4();
-    const result = await db.query(
-      'INSERT INTO users (id, email, password, role, first_name, last_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, role, first_name, last_name',
+
+    await db.query(
+      'INSERT INTO users (id, email, password, role, first_name, last_name) VALUES ($1, $2, $3, $4, $5, $6)',
       [userId, email, hashedPassword, role, firstName, lastName]
     );
 
-    const user = result.rows[0] as {
-      id: string;
-      email: string;
-      password: string;
-      role: UserRole;
-      first_name: string;
-      last_name: string;
-    };
+    const result = await db.query(
+      'SELECT id, email, role, first_name, last_name FROM users WHERE id = $1',
+      [userId]
+    );
 
-    // Generate tokens
+    const user = result.rows[0];
+
     const token = generateToken(user.id, user.role);
     const refreshToken = generateRefreshToken(user.id);
 
-    // Send response
     res.status(201).json({
       status: 'success',
       data: {
@@ -123,39 +99,24 @@ export const register = async (req: RegisterRequest, res: Response, next: NextFu
   }
 };
 
-/**
- * Login user
- * @route POST /api/auth/login
- */
 export const login = async (req: LoginRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { email, password } = req.body;
 
-    // Find user
     const result = await db.query(
       'SELECT id, email, password, role, first_name, last_name FROM users WHERE email = $1',
       [email]
     );
 
-    const user = result.rows[0] as {
-      id: string;
-      email: string;
-      password: string;
-      role: UserRole;
-      first_name: string;
-      last_name: string;
-    };
+    const user = result.rows[0];
 
-    // Check if user exists and password is correct
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return next(new AppError('Invalid email or password', 401));
     }
 
-    // Generate tokens
     const token = generateToken(user.id, user.role);
     const refreshToken = generateRefreshToken(user.id);
 
-    // Send response
     res.status(200).json({
       status: 'success',
       data: {
@@ -175,44 +136,27 @@ export const login = async (req: LoginRequest, res: Response, next: NextFunction
   }
 };
 
-/**
- * Refresh access token
- * @route POST /api/auth/refresh-token
- */
 export const refreshToken = async (req: RefreshTokenRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { refreshToken } = req.body;
-
-    // Verify refresh token
     const decoded: any = jwt.verify(refreshToken, config.jwtSecret);
 
-    // Check if token is blacklisted
     const isBlacklisted = await redisService.getBlacklistedToken(refreshToken);
     if (isBlacklisted) {
       return next(new AppError('Invalid refresh token', 401));
     }
 
-    // Check if user exists
-    const result = await db.query(
-      'SELECT id, role FROM users WHERE id = $1',
-      [decoded.id]
-    );
-
+    const result = await db.query('SELECT id, role FROM users WHERE id = $1', [decoded.id]);
     if (result.rows.length === 0) {
       return next(new AppError('User not found', 404));
     }
 
-    const user = result.rows[0] as { id: string; role: UserRole };
-
-    // Generate new access token
+    const user = result.rows[0];
     const token = generateToken(user.id, user.role);
 
-    // Send response
     res.status(200).json({
       status: 'success',
-      data: {
-        token,
-      },
+      data: { token },
     });
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
@@ -222,13 +166,8 @@ export const refreshToken = async (req: RefreshTokenRequest, res: Response, next
   }
 };
 
-/**
- * Logout user
- * @route POST /api/auth/logout
- */
 export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Get token
     let token: string | undefined;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
@@ -238,12 +177,16 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
       return next(new AppError('No token provided', 401));
     }
 
-    // Get decoded token to determine expiry
-    const decoded: any = jwt.verify(token, config.jwtSecret);
-    const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
-
-    // Blacklist token
-    await redisService.blacklistToken(token, expiresIn > 0 ? expiresIn : 3600);
+    try {
+      const decoded: any = jwt.verify(token, config.jwtSecret);
+      const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
+      await redisService.blacklistToken(token, expiresIn > 0 ? expiresIn : 3600);
+    } catch (err: any) {
+      if (err instanceof jwt.JsonWebTokenError) {
+        return next(new AppError('Invalid token', 401));
+      }
+      return next(err);
+    }
 
     res.status(200).json({
       status: 'success',
@@ -254,19 +197,13 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
   }
 };
 
-/**
- * Get current user
- * @route GET /api/auth/me
- */
 export const getMe = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      return next(new AppError('User not found', 404));
+    if (!req.user || !req.user.id) {
+      return next(new AppError('Authentication required', 401));
     }
 
-    // Get user data
+    const userId = req.user.id;
     const result = await db.query(
       'SELECT id, email, role, first_name, last_name, profile_picture, bio FROM users WHERE id = $1',
       [userId]
@@ -276,17 +213,8 @@ export const getMe = async (req: Request, res: Response, next: NextFunction): Pr
       return next(new AppError('User not found', 404));
     }
 
-    const user = result.rows[0] as {
-      id: string;
-      email: string;
-      role: UserRole;
-      first_name: string;
-      last_name: string;
-      profile_picture: string | null;
-      bio: string | null;
-    };
+    const user = result.rows[0];
 
-    // Send response
     res.status(200).json({
       status: 'success',
       data: {
@@ -306,10 +234,6 @@ export const getMe = async (req: Request, res: Response, next: NextFunction): Pr
   }
 };
 
-/**
- * Change password
- * @route PATCH /api/auth/change-password
- */
 export const changePassword = async (req: ChangePasswordRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -319,34 +243,20 @@ export const changePassword = async (req: ChangePasswordRequest, res: Response, 
       return next(new AppError('User not found', 404));
     }
 
-    // Get current user with password
-    const result = await db.query(
-      'SELECT password FROM users WHERE id = $1',
-      [userId]
-    );
-
+    const result = await db.query('SELECT password FROM users WHERE id = $1', [userId]);
     if (result.rows.length === 0) {
       return next(new AppError('User not found', 404));
     }
 
-    const user = result.rows[0] as { password: string };
-
-    // Check if current password is correct
+    const user = result.rows[0];
     if (!(await bcrypt.compare(currentPassword, user.password))) {
       return next(new AppError('Current password is incorrect', 401));
     }
 
-    // Hash new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
+    await db.query('UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2', [hashedPassword, userId]);
 
-    // Update password
-    await db.query(
-      'UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2',
-      [hashedPassword, userId]
-    );
-
-    // Send response
     res.status(200).json({
       status: 'success',
       message: 'Password updated successfully',
@@ -362,5 +272,5 @@ export default {
   refreshToken,
   logout,
   getMe,
-  changePassword
+  changePassword,
 };

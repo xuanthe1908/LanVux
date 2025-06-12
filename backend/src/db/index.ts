@@ -1,4 +1,3 @@
-// src/db/index.ts - MySQL Configuration
 import mysql from 'mysql2/promise';
 import config from '../config';
 import logger from '../utils/logger';
@@ -98,28 +97,54 @@ testConnection();
 export async function query<T extends QueryResult = QueryResult>(
   text: string, 
   params: any[] = []
-): Promise<{ rows: T[]; rowCount: number }> {
+): Promise<{ rows: T[]; rowCount: number; insertId?: number }> {
   const start = Date.now();
   
   try {
     // Convert PostgreSQL-style $1, $2 placeholders to MySQL ? placeholders
     const mysqlQuery = text.replace(/\$(\d+)/g, '?');
     
-    const [rows] = await pool.execute(mysqlQuery, params);
+    const [rows, fields] = await pool.execute(mysqlQuery, params);
     const duration = Date.now() - start;
+    
+    // Handle different types of results
+    let resultRows: T[] = [];
+    let insertId: number | undefined;
+    
+    if (Array.isArray(rows)) {
+      resultRows = rows as T[];
+    } else if (rows && typeof rows === 'object') {
+      // Handle INSERT/UPDATE/DELETE results
+      const resultSetHeader = rows as mysql.ResultSetHeader;
+      insertId = resultSetHeader.insertId;
+      
+      // For INSERT queries that need to return data, we need to fetch it
+      if (mysqlQuery.toLowerCase().includes('insert') && text.toLowerCase().includes('returning')) {
+        // Extract table name from INSERT query
+        const tableMatch = mysqlQuery.match(/insert\s+into\s+(\w+)/i);
+        if (tableMatch && insertId) {
+          const tableName = tableMatch[1];
+          // Get the inserted record
+          const [insertedRows] = await pool.execute(`SELECT * FROM ${tableName} WHERE id = ?`, [insertId]);
+          resultRows = insertedRows as T[];
+        }
+      }
+    }
     
     // Log query for development environment
     if (config.environment === 'development') {
       logger.debug('Executed MySQL query', { 
         query: mysqlQuery, 
         duration: `${duration}ms`, 
-        rowCount: Array.isArray(rows) ? rows.length : 0 
+        rowCount: resultRows.length,
+        insertId
       });
     }
     
     return {
-      rows: Array.isArray(rows) ? rows as T[] : [],
-      rowCount: Array.isArray(rows) ? rows.length : 0
+      rows: resultRows,
+      rowCount: resultRows.length,
+      insertId
     };
   } catch (err) {
     const error = err as Error;
@@ -149,12 +174,34 @@ export async function transaction<T>(
     const transactionQuery = async <R extends QueryResult = QueryResult>(
       text: string, 
       params: any[] = []
-    ): Promise<{ rows: R[]; rowCount: number }> => {
+    ): Promise<{ rows: R[]; rowCount: number; insertId?: number }> => {
       const mysqlQuery = text.replace(/\$(\d+)/g, '?');
       const [rows] = await connection.execute(mysqlQuery, params);
+      
+      let resultRows: R[] = [];
+      let insertId: number | undefined;
+      
+      if (Array.isArray(rows)) {
+        resultRows = rows as R[];
+      } else if (rows && typeof rows === 'object') {
+        const resultSetHeader = rows as mysql.ResultSetHeader;
+        insertId = resultSetHeader.insertId;
+        
+        // Handle INSERT with RETURNING simulation
+        if (mysqlQuery.toLowerCase().includes('insert') && text.toLowerCase().includes('returning')) {
+          const tableMatch = mysqlQuery.match(/insert\s+into\s+(\w+)/i);
+          if (tableMatch && insertId) {
+            const tableName = tableMatch[1];
+            const [insertedRows] = await connection.execute(`SELECT * FROM ${tableName} WHERE id = ?`, [insertId]);
+            resultRows = insertedRows as R[];
+          }
+        }
+      }
+      
       return {
-        rows: Array.isArray(rows) ? rows as R[] : [],
-        rowCount: Array.isArray(rows) ? rows.length : 0
+        rows: resultRows,
+        rowCount: resultRows.length,
+        insertId
       };
     };
     

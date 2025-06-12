@@ -89,31 +89,37 @@ export const preventNoSQLInjection = (req: Request, res: Response, next: NextFun
 
 /**
  * Check Content-Type for POST/PUT/PATCH requests
+ * (Chỉ bắt buộc nếu body có dữ liệu)
  */
 export const validateContentType = (req: Request, res: Response, next: NextFunction): void => {
   const methods = ['POST', 'PUT', 'PATCH'];
-  
-  if (methods.includes(req.method)) {
-    const contentType = req.headers['content-type'];
-    
-    if (!contentType) {
-      return next(new AppError('Content-Type header is required', 400));
-    }
-    
-    // Allow application/json and multipart/form-data
-    const allowedTypes = [
-      'application/json',
-      'multipart/form-data',
-      'application/x-www-form-urlencoded'
-    ];
-    
-    const isValidType = allowedTypes.some(type => contentType.includes(type));
-    
-    if (!isValidType) {
-      return next(new AppError('Invalid Content-Type', 400));
-    }
+
+  // Nếu không phải các method có thể có body → bỏ qua
+  if (!methods.includes(req.method)) return next();
+
+  const contentType = req.headers['content-type'] || '';
+  const hasBody =
+    req.body && Object.keys(req.body).length > 0;
+
+  // Nếu không có body thì không bắt buộc Content-Type
+  if (!hasBody) return next();
+
+  // Nếu có body nhưng thiếu Content-Type
+  if (!contentType) {
+    return next(new AppError('Content-Type header is required', 400));
   }
-  
+
+  const allowedTypes = [
+    'application/json',
+    'multipart/form-data',
+    'application/x-www-form-urlencoded',
+  ];
+
+  const isValidType = allowedTypes.some(type => contentType.includes(type));
+  if (!isValidType) {
+    return next(new AppError('Invalid Content-Type', 400));
+  }
+
   next();
 };
 

@@ -110,7 +110,7 @@ app.use('/uploads', express.static(uploadsDir, {
 setupSwagger(app);
 
 // API routes with specific rate limiting
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/lectures', lectureRoutes);

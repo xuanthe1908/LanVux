@@ -82,7 +82,7 @@ router.post(
       .isEmail()
       .withMessage('Please provide a valid email address')
       .normalizeEmail()
-      .isLength({ max: 255 })
+      .isLength({ max: 500 })
       .withMessage('Email must be less than 255 characters'),
     body('password')
       .isLength({ min: 8, max: 128 })

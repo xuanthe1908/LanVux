@@ -140,7 +140,7 @@ const config: Config = {
   // Rate Limiting
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000', 100),
     authMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '5', 10),
     aiMax: parseInt(process.env.AI_RATE_LIMIT_MAX || '10', 10),
     uploadMax: parseInt(process.env.UPLOAD_RATE_LIMIT_MAX || '20', 10),

@@ -55,8 +55,8 @@ export const generalLimiter = createRateLimiter({
 
 // Strict rate limiting for authentication endpoints
 export const authLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window
+  windowMs: 1 * 60 * 1000, 
+  max: 500, // 5 attempts per window
   message: 'Too many authentication attempts, please try again later.',
   skipSuccessfulRequests: true // Don't count successful logins against the limit
 });
@@ -70,49 +70,49 @@ export const aiChatLimiter = createRateLimiter({
 
 // Upload rate limiting
 export const uploadLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 1 * 60 * 1000, // 15 minutes
   max: 20, // 20 uploads per window
   message: 'Too many upload requests, please try again later.'
 });
 
 // Password reset rate limiting
 export const passwordResetLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 1 * 60 * 1000, // 1 hour
   max: 3, // 3 password reset attempts per hour
   message: 'Too many password reset attempts, please try again later.'
 });
 
 // Email verification rate limiting
 export const emailVerificationLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 1 * 60 * 1000, // 1 hour
   max: 5, // 5 email verification requests per hour
   message: 'Too many email verification requests, please try again later.'
 });
 
 // Course creation rate limiting (prevent spam)
 export const courseCreationLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 1 * 60 * 1000, // 1 hour
   max: 10, // 10 courses per hour per teacher
   message: 'Too many course creation requests, please try again later.'
 });
 
 // Assignment submission rate limiting
 export const assignmentSubmissionLimiter = createRateLimiter({
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 1 * 1000, // 1 minute
   max: 5, // 5 submissions per minute (to prevent spam resubmissions)
   message: 'Too many assignment submissions, please wait before trying again.'
 });
 
 // Message sending rate limiting
 export const messageLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 1 * 60 * 1000, // 15 minutes
   max: 50, // 50 messages per 15 minutes
   message: 'Too many messages sent, please try again later.'
 });
 
 // Registration rate limiting
 export const registrationLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 1 * 60 * 1000, // 1 hour
   max: 3, // 3 registrations per IP per hour
   message: 'Too many registration attempts from this IP, please try again later.'
 });
