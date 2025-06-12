@@ -1,4 +1,9 @@
 services:
+  myservice:
+    image: ...
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine

@@ -1,4 +1,3 @@
-// src/app.ts - FINAL VERSION WITH ALL ROUTES AND FEATURES
 import express, { Request, Response, Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -14,6 +13,7 @@ import validateRequest from './middleware/validateRequest';
 
 // Import configuration
 import config from './config';
+import { setupSwagger } from './config/swagger'; // ADD THIS IMPORT
 
 // Import routes
 import authRoutes from './routes/authRoutes';
@@ -105,6 +105,9 @@ app.use('/uploads', express.static(uploadsDir, {
     }
   }
 }));
+
+// Setup Swagger documentation - ADD THIS LINE
+setupSwagger(app);
 
 // API routes with specific rate limiting
 app.use('/api/auth', authLimiter, authRoutes);
