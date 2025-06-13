@@ -1,4 +1,3 @@
-// src/routes/lectureRoutes.ts - FIXED VERSION
 import express from 'express';
 import { body, param } from 'express-validator';
 import lectureController from '../controllers/lectureController';
@@ -11,9 +10,115 @@ const router = express.Router();
 router.use(protect);
 
 /**
- * @route GET /api/lectures/:id
- * @desc Get lecture by ID
- * @access Private
+ * @swagger
+ * components:
+ *   schemas:
+ *     Lecture:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *           description: Unique lecture identifier
+ *         courseId:
+ *           type: string
+ *           format: uuid
+ *           description: Course this lecture belongs to
+ *         title:
+ *           type: string
+ *           description: Lecture title
+ *         description:
+ *           type: string
+ *           description: Lecture description
+ *         contentType:
+ *           type: string
+ *           enum: [video, document, quiz]
+ *           description: Type of lecture content
+ *         contentUrl:
+ *           type: string
+ *           format: uri
+ *           description: URL to lecture content
+ *         orderIndex:
+ *           type: integer
+ *           minimum: 1
+ *           description: Order of lecture in course
+ *         duration:
+ *           type: integer
+ *           minimum: 0
+ *           description: Duration in seconds
+ *         isPublished:
+ *           type: boolean
+ *           description: Whether lecture is published
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     LectureProgress:
+ *       type: object
+ *       properties:
+ *         lectureId:
+ *           type: string
+ *           format: uuid
+ *         userId:
+ *           type: string
+ *           format: uuid
+ *         progressSeconds:
+ *           type: integer
+ *           minimum: 0
+ *         isCompleted:
+ *           type: boolean
+ *         lastAccessedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
+ * tags:
+ *   name: Lectures
+ *   description: Lecture management operations
+ */
+
+/**
+ * @swagger
+ * /api/lectures/{id}:
+ *   get:
+ *     summary: Get lecture by ID
+ *     tags: [Lectures]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Lecture ID
+ *     responses:
+ *       200:
+ *         description: Lecture retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     lecture:
+ *                       $ref: '#/components/schemas/Lecture'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
  */
 router.get(
   '/:id',
@@ -25,9 +130,68 @@ router.get(
 );
 
 /**
- * @route PATCH /api/lectures/:id
- * @desc Update lecture
- * @access Private (Teacher - own courses, Admin - all)
+ * @swagger
+ * /api/lectures/{id}:
+ *   patch:
+ *     summary: Update lecture
+ *     tags: [Lectures]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Lecture ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 maxLength: 255
+ *               description:
+ *                 type: string
+ *               contentType:
+ *                 type: string
+ *                 enum: [video, document, quiz]
+ *               contentUrl:
+ *                 type: string
+ *                 format: uri
+ *               orderIndex:
+ *                 type: integer
+ *                 minimum: 1
+ *               duration:
+ *                 type: integer
+ *                 minimum: 0
+ *     responses:
+ *       200:
+ *         description: Lecture updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     lecture:
+ *                       $ref: '#/components/schemas/Lecture'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
  */
 router.patch(
   '/:id',
@@ -45,9 +209,30 @@ router.patch(
 );
 
 /**
- * @route DELETE /api/lectures/:id
- * @desc Delete lecture
- * @access Private (Teacher - own courses, Admin - all)
+ * @swagger
+ * /api/lectures/{id}:
+ *   delete:
+ *     summary: Delete lecture
+ *     tags: [Lectures]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Lecture ID
+ *     responses:
+ *       204:
+ *         description: Lecture deleted successfully
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
  */
 router.delete(
   '/:id',
@@ -59,9 +244,43 @@ router.delete(
 );
 
 /**
- * @route PATCH /api/lectures/:id/publish
- * @desc Publish lecture
- * @access Private (Teacher - own courses, Admin - all)
+ * @swagger
+ * /api/lectures/{id}/publish:
+ *   patch:
+ *     summary: Publish lecture
+ *     tags: [Lectures]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Lecture ID
+ *     responses:
+ *       200:
+ *         description: Lecture published successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     lecture:
+ *                       $ref: '#/components/schemas/Lecture'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
  */
 router.patch(
   '/:id/publish',
@@ -73,9 +292,58 @@ router.patch(
 );
 
 /**
- * @route POST /api/lectures/:id/progress
- * @desc Update lecture progress
- * @access Private (Student)
+ * @swagger
+ * /api/lectures/{id}/progress:
+ *   post:
+ *     summary: Update lecture progress
+ *     tags: [Lectures]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Lecture ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               progressSeconds:
+ *                 type: integer
+ *                 minimum: 0
+ *                 description: Progress in seconds
+ *               isCompleted:
+ *                 type: boolean
+ *                 description: Whether lecture is completed
+ *     responses:
+ *       200:
+ *         description: Progress updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     progress:
+ *                       $ref: '#/components/schemas/LectureProgress'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
  */
 router.post(
   '/:id/progress',
