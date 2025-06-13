@@ -1,12 +1,12 @@
-// backend/src/routes/courseRoutes.ts - COMPLETE VERSION WITH SWAGGER
+// backend/src/routes/courseRoutes.ts - FIXED COMPLETE VERSION
 import express from 'express';
 import { body, query, param } from 'express-validator';
 import courseController from '../controllers/courseController';
 import lectureController from '../controllers/lectureController';
 import assignmentController from '../controllers/assignmentController';
 import { protect, restrictTo } from '../middleware/authMiddleware';
-import { validateRequest, sanitizeBody, parseNumbers, parseBooleans } from '../middleware/validateRequest';
-import { courseCreationLimiter } from '../middleware/rateLimitMiddleware';
+import validateRequest from '../middleware/validateRequest';
+import db from '../db';
 
 const router = express.Router();
 
@@ -338,636 +338,7 @@ router.post(
   '/',
   protect,
   restrictTo('teacher', 'admin'),
-  courseCreationLimiter,
-  sanitizeBody,
-  parseNumbers(['price']),
   [
-    body('title')
-      .notEmpty()
-      .withMessage('Title is required')
-      .isLength({ min: 3, max: 255 })
-      .withMessage('Title must be between 3 and 255 characters')
-      .trim(),
-    body('description')
-      .notEmpty()
-      .withMessage('Description is required')
-      .isLength({ min: 10, max: 5000 })
-      .withMessage('Description must be between 10 and 5000 characters')
-      .trim(),
-    body('dueDate')
-      .optional()
-      .isISO8601()
-      .withMessage('Due date must be a valid ISO 8601 date'),
-    body('maxPoints')
-      .isInt({ min: 1, max: 1000 })
-      .withMessage('Max points must be between 1 and 1000'),
-    validateRequest
-  ],
-  assignmentController.createAssignment
-);
-
-/**
- * @swagger
- * /api/courses/{courseId}/enrollments:
- *   get:
- *     summary: Get enrollments for a course (Teacher/Admin only)
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: courseId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 10
- *     responses:
- *       200:
- *         description: Course enrollments retrieved successfully
- *       403:
- *         description: Only course owner or admin can view enrollments
- *       404:
- *         $ref: '#/components/responses/NotFoundError'
- */
-import { Request, Response, NextFunction } from 'express';
-
-interface CourseEnrollmentsRequest extends Request {
-  params: {
-    courseId: string;
-  };
-  query: {
-    page?: string;
-    limit?: string;
-  };
-}
-
-router.get(
-  '/:courseId/enrollments',
-  protect,
-  [
-    param('courseId').isUUID().withMessage('Course ID must be a valid UUID'),
-    query('page')
-      .optional()
-      .isInt({ min: 1 })
-      .withMessage('Page must be a positive integer'),
-    query('limit')
-      .optional()
-      .isInt({ min: 1, max: 100 })
-      .withMessage('Limit must be between 1 and 100'),
-    validateRequest
-  ],
-  async (req: CourseEnrollmentsRequest, res: Response, next: NextFunction): Promise<void> => {
-    // Import enrollment controller function
-    const enrollmentController = require('../controllers/enrollmentController').default;
-    enrollmentController.getCourseEnrollments(req, res, next);
-  }
-);
-
-export default router;({ min: 10, max: 5000 })
-      .withMessage('Description must be between 10 and 5000 characters')
-      .trim(),
-    body('thumbnailUrl')
-      .optional()
-      .isURL()
-      .withMessage('Thumbnail URL must be a valid URL')
-      .isLength({ max: 500 })
-      .withMessage('Thumbnail URL must be less than 500 characters'),
-    body('price')
-      .isFloat({ min: 0 })
-      .withMessage('Price must be a non-negative number'),
-    body('level')
-      .isIn(['beginner', 'intermediate', 'advanced'])
-      .withMessage('Level must be beginner, intermediate, or advanced'),
-    body('category')
-      .notEmpty()
-      .withMessage('Category is required')
-      .isString()
-      .trim()
-      .isLength({ min: 2, max: 100 })
-      .withMessage('Category must be between 2 and 100 characters'),
-    body('categoryId')
-      .optional()
-      .isUUID()
-      .withMessage('Category ID must be a valid UUID'),
-    validateRequest
-  ],
-  courseController.createCourse
-);
-
-/**
- * @swagger
- * /api/courses/stats:
- *   get:
- *     summary: Get course statistics
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: period
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 365
- *           default: 30
- *         description: Number of days for trend analysis
- *     responses:
- *       200:
- *         description: Course statistics retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                 data:
- *                   $ref: '#/components/schemas/CourseStats'
- *       403:
- *         $ref: '#/components/responses/ForbiddenError'
- */
-router.get(
-  '/stats',
-  protect,
-  restrictTo('teacher', 'admin'),
-  [
-    query('period')
-      .optional()
-      .isInt({ min: 1, max: 365 })
-      .withMessage('Period must be between 1 and 365 days'),
-    validateRequest
-  ],
-  courseController.getCourseStats
-);
-
-/**
- * @swagger
- * /api/courses/my-courses:
- *   get:
- *     summary: Get current user's courses (for teachers)
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 10
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [draft, published, archived]
- *     responses:
- *       200:
- *         description: User's courses retrieved successfully
- *       403:
- *         description: Only teachers can access this endpoint
- */
-router.get(
-  '/my-courses',
-  protect,
-  restrictTo('teacher'),
-  [
-    query('page')
-      .optional()
-      .isInt({ min: 1 })
-      .withMessage('Page must be a positive integer'),
-    query('limit')
-      .optional()
-      .isInt({ min: 1, max: 100 })
-      .withMessage('Limit must be between 1 and 100'),
-    query('status')
-      .optional()
-      .isIn(['draft', 'published', 'archived'])
-      .withMessage('Status must be draft, published, or archived'),
-    validateRequest
-  ],
-  courseController.getMyCourses
-);
-
-/**
- * @swagger
- * /api/courses/{id}:
- *   get:
- *     summary: Get course by ID
- *     tags: [Courses]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Course ID
- *     responses:
- *       200:
- *         description: Course details retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     course:
- *                       allOf:
- *                         - $ref: '#/components/schemas/Course'
- *                         - type: object
- *                           properties:
- *                             lectures:
- *                               type: array
- *                               items:
- *                                 type: object
- *                                 properties:
- *                                   id:
- *                                     type: string
- *                                   title:
- *                                     type: string
- *                                   orderIndex:
- *                                     type: number
- *                                   duration:
- *                                     type: number
- *       404:
- *         $ref: '#/components/responses/NotFoundError'
- *   patch:
- *     summary: Update course
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *                 minLength: 3
- *                 maxLength: 255
- *               description:
- *                 type: string
- *                 minLength: 10
- *                 maxLength: 5000
- *               thumbnailUrl:
- *                 type: string
- *                 format: uri
- *               price:
- *                 type: number
- *                 minimum: 0
- *               level:
- *                 type: string
- *                 enum: [beginner, intermediate, advanced]
- *               category:
- *                 type: string
- *               categoryId:
- *                 type: string
- *                 format: uuid
- *     responses:
- *       200:
- *         description: Course updated successfully
- *       403:
- *         description: Only course owner or admin can update
- *       404:
- *         $ref: '#/components/responses/NotFoundError'
- *   delete:
- *     summary: Delete course
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     responses:
- *       204:
- *         description: Course deleted successfully
- *       403:
- *         description: Only course owner or admin can delete
- *       404:
- *         $ref: '#/components/responses/NotFoundError'
- */
-router.get(
-  '/:id',
-  [
-    param('id').isUUID().withMessage('Course ID must be a valid UUID'),
-    validateRequest
-  ],
-  courseController.getCourseById
-);
-
-router.patch(
-  '/:id',
-  protect,
-  sanitizeBody,
-  parseNumbers(['price']),
-  [
-    param('id').isUUID().withMessage('Course ID must be a valid UUID'),
-    body('title')
-      .optional()
-      .isLength({ min: 3, max: 255 })
-      .withMessage('Title must be between 3 and 255 characters')
-      .trim(),
-    body('description')
-      .optional()
-      .isLength({ min: 10, max: 5000 })
-      .withMessage('Description must be between 10 and 5000 characters')
-      .trim(),
-    body('thumbnailUrl')
-      .optional()
-      .isURL()
-      .withMessage('Thumbnail URL must be a valid URL')
-      .isLength({ max: 500 })
-      .withMessage('Thumbnail URL must be less than 500 characters'),
-    body('price')
-      .optional()
-      .isFloat({ min: 0 })
-      .withMessage('Price must be a non-negative number'),
-    body('level')
-      .optional()
-      .isIn(['beginner', 'intermediate', 'advanced'])
-      .withMessage('Level must be beginner, intermediate, or advanced'),
-    body('category')
-      .optional()
-      .isString()
-      .trim()
-      .isLength({ min: 2, max: 100 })
-      .withMessage('Category must be between 2 and 100 characters'),
-    body('categoryId')
-      .optional()
-      .isUUID()
-      .withMessage('Category ID must be a valid UUID'),
-    validateRequest
-  ],
-  courseController.updateCourse
-);
-
-router.delete(
-  '/:id',
-  protect,
-  [
-    param('id').isUUID().withMessage('Course ID must be a valid UUID'),
-    validateRequest
-  ],
-  courseController.deleteCourse
-);
-
-/**
- * @swagger
- * /api/courses/{id}/publish:
- *   patch:
- *     summary: Publish course
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     responses:
- *       200:
- *         description: Course published successfully
- *       403:
- *         description: Only course owner or admin can publish
- *       404:
- *         $ref: '#/components/responses/NotFoundError'
- */
-router.patch(
-  '/:id/publish',
-  protect,
-  [
-    param('id').isUUID().withMessage('Course ID must be a valid UUID'),
-    validateRequest
-  ],
-  courseController.publishCourse
-);
-
-/**
- * @swagger
- * /api/courses/{id}/archive:
- *   patch:
- *     summary: Archive course
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     responses:
- *       200:
- *         description: Course archived successfully
- *       403:
- *         description: Only course owner or admin can archive
- *       404:
- *         $ref: '#/components/responses/NotFoundError'
- */
-router.patch(
-  '/:id/archive',
-  protect,
-  [
-    param('id').isUUID().withMessage('Course ID must be a valid UUID'),
-    validateRequest
-  ],
-  courseController.archiveCourse
-);
-
-/**
- * @swagger
- * /api/courses/{id}/duplicate:
- *   post:
- *     summary: Duplicate course
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - newTitle
- *             properties:
- *               newTitle:
- *                 type: string
- *                 minLength: 3
- *                 maxLength: 255
- *                 example: "Copy of Complete JavaScript Course"
- *               includeLectures:
- *                 type: boolean
- *                 default: true
- *               includeAssignments:
- *                 type: boolean
- *                 default: true
- *     responses:
- *       201:
- *         description: Course duplicated successfully
- *       403:
- *         description: Only course owner or admin can duplicate
- *       404:
- *         $ref: '#/components/responses/NotFoundError'
- */
-router.post(
-  '/:id/duplicate',
-  protect,
-  restrictTo('teacher', 'admin'),
-  sanitizeBody,
-  parseBooleans(['includeLectures', 'includeAssignments']),
-  [
-    param('id').isUUID().withMessage('Course ID must be a valid UUID'),
-    body('newTitle')
-      .notEmpty()
-      .withMessage('New title is required')
-      .isLength({ min: 3, max: 255 })
-      .withMessage('New title must be between 3 and 255 characters')
-      .trim(),
-    body('includeLectures')
-      .optional()
-      .isBoolean()
-      .withMessage('Include lectures must be a boolean'),
-    body('includeAssignments')
-      .optional()
-      .isBoolean()
-      .withMessage('Include assignments must be a boolean'),
-    validateRequest
-  ],
-  courseController.duplicateCourse
-);
-
-// ===== LECTURE ROUTES FOR COURSES =====
-
-/**
- * @swagger
- * /api/courses/{courseId}/lectures:
- *   get:
- *     summary: Get lectures for a course
- *     tags: [Courses]
- *     parameters:
- *       - in: path
- *         name: courseId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     responses:
- *       200:
- *         description: Lectures retrieved successfully
- *       404:
- *         $ref: '#/components/responses/NotFoundError'
- *   post:
- *     summary: Create a new lecture for course
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: courseId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - title
- *               - contentType
- *               - orderIndex
- *             properties:
- *               title:
- *                 type: string
- *                 minLength: 3
- *                 maxLength: 255
- *               description:
- *                 type: string
- *                 maxLength: 2000
- *               contentType:
- *                 type: string
- *                 enum: [video, document, quiz]
- *               contentUrl:
- *                 type: string
- *                 format: uri
- *               orderIndex:
- *                 type: integer
- *                 minimum: 1
- *               duration:
- *                 type: integer
- *                 minimum: 0
- *     responses:
- *       201:
- *         description: Lecture created successfully
- *       403:
- *         description: Only course owner or admin can create lectures
- */
-router.get(
-  '/:courseId/lectures',
-  [
-    param('courseId').isUUID().withMessage('Course ID must be a valid UUID'),
-    validateRequest
-  ],
-  lectureController.getLecturesByCourse
-);
-
-router.post(
-  '/:courseId/lectures',
-  protect,
-  sanitizeBody,
-  parseNumbers(['orderIndex', 'duration']),
-  [
-    param('courseId').isUUID().withMessage('Course ID must be a valid UUID'),
     body('title')
       .notEmpty()
       .withMessage('Title is required')
@@ -998,8 +369,6 @@ router.post(
   ],
   lectureController.createLecture
 );
-
-// ===== ASSIGNMENT ROUTES FOR COURSES =====
 
 /**
  * @swagger
@@ -1076,8 +445,6 @@ router.post(
   '/:courseId/assignments',
   protect,
   restrictTo('teacher', 'admin'),
-  sanitizeBody,
-  parseNumbers(['maxPoints']),
   [
     param('courseId').isUUID().withMessage('Course ID must be a valid UUID'),
     body('title')
@@ -1090,7 +457,7 @@ router.post(
       .notEmpty()
       .withMessage('Description is required')
       .isLength({ min: 10, max: 5000 })
-      .withMessage('Description must be between 10 and 5000 characters') 
+      .withMessage('Description must be between 10 and 5000 characters')
       .trim(),
     body('dueDate')
       .optional()
@@ -1103,3 +470,302 @@ router.post(
   ],
   assignmentController.createAssignment
 );
+
+/**
+ * @swagger
+ * /api/courses/{courseId}/enrollments:
+ *   get:
+ *     summary: Get enrollments for a course (Teacher/Admin only)
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Course enrollments retrieved successfully
+ *       403:
+ *         description: Only course owner or admin can view enrollments
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
+ */
+router.get(
+  '/:courseId/enrollments',
+  protect,
+  restrictTo('teacher', 'admin'),
+  [
+    param('courseId').isUUID().withMessage('Course ID must be a valid UUID'),
+    query('page')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('Page must be a positive integer'),
+    query('limit')
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage('Limit must be between 1 and 100'),
+    validateRequest
+  ],
+  async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    try {
+      const { courseId } = req.params;
+      const { page = 1, limit = 10 } = req.query;
+      
+      const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+      
+      const enrollments = await db.query(
+        `SELECT e.*, u.first_name, u.last_name, u.email 
+         FROM enrollments e
+         JOIN users u ON e.user_id = u.id
+         WHERE e.course_id = ?
+         ORDER BY e.enrolled_at DESC
+         LIMIT ? OFFSET ?`,
+        [courseId, parseInt(limit as string), offset]
+      );
+
+      const totalResult = await db.query(
+        'SELECT COUNT(*) as count FROM enrollments WHERE course_id = ?',
+        [courseId]
+      );
+      
+      const total = parseInt(totalResult.rows[0]?.count || '0');
+
+      res.status(200).json({
+        status: 'success',
+        results: enrollments.rows.length,
+        totalPages: Math.ceil(total / parseInt(limit as string)),
+        currentPage: parseInt(page as string),
+        data: {
+          enrollments: enrollments.rows
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/courses/{id}/reviews:
+ *   get:
+ *     summary: Get reviews for a course
+ *     tags: [Courses]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 10
+ *       - in: query
+ *         name: rating
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 5
+ *         description: Filter by rating
+ *     responses:
+ *       200:
+ *         description: Course reviews retrieved successfully
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
+ */
+router.get(
+  '/:id/reviews',
+  [
+    param('id').isUUID().withMessage('Course ID must be a valid UUID'),
+    query('page')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('Page must be a positive integer'),
+    query('limit')
+      .optional()
+      .isInt({ min: 1, max: 50 })
+      .withMessage('Limit must be between 1 and 50'),
+    query('rating')
+      .optional()
+      .isInt({ min: 1, max: 5 })
+      .withMessage('Rating must be between 1 and 5'),
+    validateRequest
+  ],
+  courseController.getCourseReviews
+);
+
+/**
+ * @swagger
+ * /api/courses/{id}/status:
+ *   patch:
+ *     summary: Update course status (Admin only)
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [draft, published, archived, suspended]
+ *               reason:
+ *                 type: string
+ *                 description: Reason for status change
+ *     responses:
+ *       200:
+ *         description: Course status updated successfully
+ *       403:
+ *         description: Only administrators can update course status
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
+ */
+router.patch(
+  '/:id/status',
+  protect,
+  restrictTo('admin'),
+  [
+    param('id').isUUID().withMessage('Course ID must be a valid UUID'),
+    body('status')
+      .isIn(['draft', 'published', 'archived', 'suspended'])
+      .withMessage('Status must be draft, published, archived, or suspended'),
+    body('reason')
+      .optional()
+      .isString()
+      .trim()
+      .isLength({ max: 1000 })
+      .withMessage('Reason must be less than 1000 characters'),
+    validateRequest
+  ],
+  courseController.updateCourseStatus
+);
+
+/**
+ * @swagger
+ * /api/courses/bulk:
+ *   patch:
+ *     summary: Bulk update courses (Admin only)
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - courseIds
+ *               - action
+ *             properties:
+ *               courseIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 minItems: 1
+ *                 maxItems: 50
+ *               action:
+ *                 type: string
+ *                 enum: [publish, archive, change_category]
+ *               value:
+ *                 type: string
+ *                 description: Required for change_category action
+ *     responses:
+ *       200:
+ *         description: Bulk update completed successfully
+ *       400:
+ *         description: Invalid request parameters
+ *       403:
+ *         description: Only administrators can perform bulk operations
+ */
+router.patch(
+  '/bulk',
+  protect,
+  restrictTo('admin'),
+  [
+    body('courseIds')
+      .isArray({ min: 1, max: 50 })
+      .withMessage('Course IDs must be an array with 1-50 items'),
+    body('courseIds.*')
+      .isUUID()
+      .withMessage('Each course ID must be a valid UUID'),
+    body('action')
+      .isIn(['publish', 'archive', 'change_category'])
+      .withMessage('Action must be publish, archive, or change_category'),
+    body('value')
+      .if(body('action').equals('change_category'))
+      .notEmpty()
+      .withMessage('Value is required for change_category action')
+      .isString()
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage('Category value must be between 2 and 100 characters'),
+    validateRequest
+  ],
+  courseController.bulkUpdateCourses
+);
+
+// Error handling middleware for course routes
+router.use((error: any, req: any, res: any, next: any) => {
+  if (error.name === 'ValidationError') {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Validation failed',
+      errors: error.details
+    });
+  }
+  
+  if (error.code === 'ER_DUP_ENTRY') {
+    return res.status(409).json({
+      status: 'error',
+      message: 'Duplicate entry detected',
+      error: 'A course with this title already exists'
+    });
+  }
+  
+  next(error);
+});
+
+export default router;
+      
