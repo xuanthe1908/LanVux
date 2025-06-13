@@ -45,3 +45,5 @@ package-lock.json
 lerna-debug.log
 turbo/
 pnpm-lock.yaml
+
+*.env
