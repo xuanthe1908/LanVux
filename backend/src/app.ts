@@ -9,16 +9,15 @@ import fs from 'fs';
 import { errorHandler, notFound } from './middleware/errorMiddleware';
 import { generalLimiter, authLimiter, aiChatLimiter, uploadLimiter } from './middleware/rateLimitMiddleware';
 import { sanitizeInput, addSecurityHeaders, validateContentType, preventNoSQLInjection } from './middleware/securityMiddleware';
-import validateRequest from './middleware/validateRequest';
 
 // Import configuration
 import config from './config';
-import { setupSwagger } from './config/swagger'; // ADD THIS IMPORT
+import { setupSwagger } from './config/swagger';
 
 // Import routes
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
-import courseRoutes from './routes/courseRoutes';
+import courseRoutes from './routes/courseRoutes'; // MAKE SURE THIS IS IMPORTED
 import lectureRoutes from './routes/lectureRoutes';
 import enrollmentRoutes from './routes/enrollmentRoutes';
 import assignmentRoutes from './routes/assignmentRoutes';
@@ -106,13 +105,13 @@ app.use('/uploads', express.static(uploadsDir, {
   }
 }));
 
-// Setup Swagger documentation - ADD THIS LINE
+// Setup Swagger documentation
 setupSwagger(app);
 
 // API routes with specific rate limiting
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/courses', courseRoutes);
+app.use('/api/courses', courseRoutes); // MAKE SURE THIS LINE EXISTS
 app.use('/api/lectures', lectureRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/assignments', assignmentRoutes);
@@ -145,7 +144,9 @@ app.get('/api/health', (req: Request, res: Response) => {
       payment: config.payment.enabled,
       ai: !!config.openaiApiKey,
       vnpay: !!(config.vnpay.tmnCode && config.vnpay.hashSecret),
-      redis: !!config.redisUrl
+      redis: !!config.redisUrl,
+      courses: true, // ADD THIS TO CONFIRM COURSES FEATURE IS ENABLED
+      swagger: true
     }
   });
 });
@@ -171,7 +172,23 @@ app.get('/api', (req: Request, res: Response) => {
       courses: {
         base: '/api/courses',
         description: 'Course management',
-        routes: ['GET /', 'POST /', 'GET /:id', 'PATCH /:id', 'DELETE /:id', 'PATCH /:id/publish']
+        routes: [
+          'GET /',
+          'POST /',
+          'GET /stats',
+          'GET /my-courses',
+          'GET /:id',
+          'PATCH /:id',
+          'DELETE /:id',
+          'PATCH /:id/publish',
+          'PATCH /:id/archive',
+          'POST /:id/duplicate',
+          'GET /:courseId/lectures',
+          'POST /:courseId/lectures',
+          'GET /:courseId/assignments',
+          'POST /:courseId/assignments',
+          'GET /:courseId/enrollments'
+        ]
       },
       lectures: {
         base: '/api/lectures',
@@ -201,7 +218,7 @@ app.get('/api', (req: Request, res: Response) => {
       categories: {
         base: '/api/categories',
         description: 'Course categories',
-        routes: ['GET /', 'POST /', 'GET /:id', 'PATCH /:id', 'DELETE /:id', 'POST /bulk']
+        routes: ['GET /', 'POST /', 'GET /:id', 'PATCH /:id', 'DELETE /:id']
       },
       coupons: {
         base: '/api/coupons',
@@ -228,6 +245,7 @@ app.get('/api', (req: Request, res: Response) => {
     features: {
       authentication: 'JWT-based authentication with refresh tokens',
       authorization: 'Role-based access control (student, teacher, admin)',
+      courseManagement: 'Complete CRUD operations for courses with lectures and assignments',
       fileUpload: 'Multi-format file upload with validation',
       payment: 'VNPay integration for course payments',
       coupons: 'Discount coupon system',
@@ -235,7 +253,8 @@ app.get('/api', (req: Request, res: Response) => {
       messaging: 'Internal messaging system',
       progress: 'Course and lecture progress tracking',
       assignments: 'Assignment submission and grading',
-      categories: 'Course categorization system'
+      categories: 'Course categorization system',
+      swaggerDocs: 'Comprehensive API documentation'
     }
   });
 });
@@ -244,7 +263,8 @@ app.get('/api', (req: Request, res: Response) => {
 app.get('/api/status', (req: Request, res: Response) => {
   const services: { [key: string]: string } = {
     database: 'connected',
-    uploads: 'available'
+    uploads: 'available',
+    courses: 'available' // ADD THIS
   };
 
   // Check Redis connection
