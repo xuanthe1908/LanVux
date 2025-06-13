@@ -1,4 +1,3 @@
-// src/redux/slices/lectureSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { setMessage } from './uiSlice';
 import lectureService from '../../services/lectureService';

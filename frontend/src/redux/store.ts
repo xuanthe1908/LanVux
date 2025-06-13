@@ -1,58 +1,52 @@
-// src/redux/store.ts
-import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import { 
-  persistStore, 
-  persistReducer,
-  FLUSH,
-  REHYDRATE,
-  PAUSE,
-  PERSIST,
-  PURGE,
-  REGISTER
-} from 'redux-persist';
+import { configureStore } from '@reduxjs/toolkit';
+import { persistStore, persistReducer } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
+import { combineReducers } from '@reduxjs/toolkit';
 
-// Import reducers
+// Import all slice reducers
 import authReducer from './slices/authSlice';
 import courseReducer from './slices/courseSlice';
-import lectureReducer from './slices/lectureSlice';
-// import assignmentReducer from './slices/assignmentSlice';
-// import messageReducer from './slices/messageSlice';
-import aiChatReducer from './slices/aiChatSlice';
+import enrollmentReducer from './slices/enrollmentSlice';
+import messageReducer from './slices/messageSlice';
+import categoryReducer from './slices/categorySlice';
+import paymentReducer from './slices/paymentSlice';
+import couponReducer from './slices/couponSlice';
 import uiReducer from './slices/uiSlice';
 
-// Configure persist for auth slice
-const authPersistConfig = {
-  key: 'auth',
+// Configure persistence
+const persistConfig = {
+  key: 'root',
   storage,
-  whitelist: ['user', 'token', 'isAuthenticated'] // Only persist these fields
+  whitelist: ['auth'], // Only persist auth state
 };
 
 // Combine all reducers
 const rootReducer = combineReducers({
-  auth: persistReducer(authPersistConfig, authReducer),
+  auth: authReducer,
   courses: courseReducer,
-  lectures: lectureReducer,
-  //  assignments: assignmentReducer,
-  // messages: messageReducer,
-  aiChat: aiChatReducer,
+  enrollments: enrollmentReducer,
+  messages: messageReducer,
+  categories: categoryReducer,
+  payments: paymentReducer,
+  coupons: couponReducer,
   ui: uiReducer,
 });
 
-// Create and configure the store
+const persistedReducer = persistReducer(persistConfig, rootReducer);
+
+// Configure store
 export const store = configureStore({
-  reducer: rootReducer,
+  reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
       },
     }),
+  devTools: process.env.NODE_ENV !== 'production',
 });
 
-// Create the persisted store
 export const persistor = persistStore(store);
 
-// Export types for TypeScript
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

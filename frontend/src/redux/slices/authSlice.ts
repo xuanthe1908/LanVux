@@ -1,31 +1,20 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import authService from '../../services/authService';
-import { setMessage } from './uiSlice';
+import { authService, User } from '../../services/apiServices';
 
-// Types
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-}
-
-interface AuthState {
-  isAuthenticated: boolean;
+export interface AuthState {
   user: User | null;
   token: string | null;
   refreshToken: string | null;
+  isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
 }
 
-// Initial state
 const initialState: AuthState = {
-  isAuthenticated: false,
   user: null,
   token: null,
   refreshToken: null,
+  isAuthenticated: false,
   loading: false,
   error: null,
 };
@@ -33,88 +22,79 @@ const initialState: AuthState = {
 // Async thunks
 export const login = createAsyncThunk(
   'auth/login',
-  async ({ email, password }: { email: string; password: string }, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await authService.login(email, password);
-      return data;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Login failed';
-      dispatch(setMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+  async ({ email, password }: { email: string; password: string }) => {
+    const response = await authService.login({ email, password });
+    return response.data;
   }
 );
 
 export const register = createAsyncThunk(
   'auth/register',
-  async (
-    { 
-      email, 
-      password, 
-      firstName, 
-      lastName, 
-      role = 'student' 
-    }: { 
-      email: string; 
-      password: string; 
-      firstName: string; 
-      lastName: string; 
-      role?: string;
-    }, 
-    { dispatch, rejectWithValue }
-  ) => {
-    try {
-      const data = await authService.register(email, password, firstName, lastName, role);
-      return data;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Registration failed';
-      dispatch(setMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+  async (userData: any) => {
+    const response = await authService.register(userData);
+    return response.data;
   }
 );
 
 export const logout = createAsyncThunk(
   'auth/logout',
-  async (_, { dispatch, rejectWithValue }) => {
-    try {
-      await authService.logout();
-      dispatch(setMessage({ type: 'success', text: 'Logged out successfully' }));
-      return null;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Logout failed';
-      dispatch(setMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+  async () => {
+    await authService.logout();
+  }
+);
+
+export const getMe = createAsyncThunk(
+  'auth/getMe',
+  async () => {
+    const response = await authService.getMe();
+    return response.data.user;
+  }
+);
+
+export const changePassword = createAsyncThunk(
+  'auth/changePassword',
+  async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
+    const response = await authService.changePassword({ currentPassword, newPassword });
+    return response.data;
   }
 );
 
 export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
-  async (_, { getState, rejectWithValue }) => {
-    try {
-      const state = getState() as { auth: AuthState };
-      if (!state.auth.refreshToken) {
-        throw new Error('No refresh token available');
-      }
-      const data = await authService.refreshToken(state.auth.refreshToken);
-      return data;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Token refresh failed';
-      return rejectWithValue(message);
+  async (_, { getState }) => {
+    const state = getState() as { auth: AuthState };
+    if (!state.auth.refreshToken) {
+      throw new Error('No refresh token available');
     }
+    const response = await authService.refreshToken(state.auth.refreshToken);
+    return response.data;
   }
 );
 
-// Auth slice
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    // Additional reducers if needed
     clearError: (state) => {
       state.error = null;
     },
+    setCredentials: (state, action: PayloadAction<{ user: User; token: string; refreshToken: string }>) => {
+      state.user = action.payload.user;
+      state.token = action.payload.token;
+      state.refreshToken = action.payload.refreshToken;
+      state.isAuthenticated = true;
+    },
+    clearCredentials: (state) => {
+      state.user = null;
+      state.token = null;
+      state.refreshToken = null;
+      state.isAuthenticated = false;
+    },
+    updateUser: (state, action: PayloadAction<Partial<User>>) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+      }
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -123,59 +103,72 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(login.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = true;
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.refreshToken = action.payload.refreshToken;
+        state.isAuthenticated = true;
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = false;
-        state.user = null;
-        state.token = null;
-        state.refreshToken = null;
-        state.error = action.payload as string;
+        state.error = action.error.message || 'Login failed';
       })
-      
       // Register
       .addCase(register.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(register.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = true;
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.refreshToken = action.payload.refreshToken;
+        state.isAuthenticated = true;
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.error.message || 'Registration failed';
       })
-      
       // Logout
       .addCase(logout.fulfilled, (state) => {
-        state.isAuthenticated = false;
         state.user = null;
         state.token = null;
         state.refreshToken = null;
+        state.isAuthenticated = false;
       })
-      
+      // Get me
+      .addCase(getMe.fulfilled, (state, action) => {
+        state.user = action.payload;
+      })
+      // Change password
+      .addCase(changePassword.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(changePassword.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(changePassword.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Password change failed';
+      })
       // Refresh token
-      .addCase(refreshToken.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(refreshToken.fulfilled, (state, action) => {
         state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
+        if (action.payload.user) {
+          state.user = action.payload.user;
+        }
       })
       .addCase(refreshToken.rejected, (state) => {
-        state.isAuthenticated = false;
         state.user = null;
         state.token = null;
         state.refreshToken = null;
+        state.isAuthenticated = false;
       });
-  },
+  }
 });
 
-export const { clearError } = authSlice.actions;
+export const { clearError, setCredentials, clearCredentials, updateUser } = authSlice.actions;
 export default authSlice.reducer;

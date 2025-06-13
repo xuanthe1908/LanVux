@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "types": ["react", "react-dom"]
+    "types": ["react", "react-dom","node"]
   },
   "include": ["src"]
 }

@@ -1,172 +1,129 @@
-// src/redux/slices/courseSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { setMessage } from './uiSlice';
-import courseService from '../../services/courseService';
+import { courseService, Course } from '../../services/apiServices';
 
-// Types
-export interface Course {
-  id: string;
-  title: string;
-  description: string;
-  thumbnailUrl?: string;
-  teacherId: string;
-  teacherName?: string;
-  price: number;
-  status: 'draft' | 'published' | 'archived';
-  level: 'beginner' | 'intermediate' | 'advanced';
-  category: string;
-  categoryId?: string;
-  studentsCount?: number;
-  rating?: number;
-  reviewsCount?: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface CourseState {
+export interface CourseState {
   courses: Course[];
-  enrolledCourses: Course[];
-  teachingCourses: Course[];
+  myCourses: Course[];
   currentCourse: Course | null;
+  courseStats: any;
   loading: boolean;
   error: string | null;
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+  filters: {
+    search: string;
+    category: string;
+    level: string;
+    minPrice: number | null;
+    maxPrice: number | null;
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
+  };
 }
 
-// Initial state
 const initialState: CourseState = {
   courses: [],
-  enrolledCourses: [],
-  teachingCourses: [],
+  myCourses: [],
   currentCourse: null,
+  courseStats: null,
   loading: false,
   error: null,
+  totalCount: 0,
+  currentPage: 1,
+  totalPages: 0,
+  filters: {
+    search: '',
+    category: '',
+    level: '',
+    minPrice: null,
+    maxPrice: null,
+    sortBy: 'created_at',
+    sortOrder: 'desc'
+  }
 };
 
 // Async thunks
 export const fetchCourses = createAsyncThunk(
   'courses/fetchCourses',
-  async (params: { 
-    page?: number; 
-    limit?: number; 
-    category?: string; 
-    level?: string; 
-    search?: string;
-  } = {}, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await courseService.getCourses(params);
-      return data.courses;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to fetch courses';
-      dispatch(setMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+  async (params: any = {}) => {
+    const response = await courseService.getAllCourses(params);
+    return response.data;
+  }
+);
+
+export const fetchMyCourses = createAsyncThunk(
+  'courses/fetchMyCourses',
+  async (params: any = {}) => {
+    const response = await courseService.getMyCourses(params);
+    return response.data;
   }
 );
 
 export const fetchCourseById = createAsyncThunk(
   'courses/fetchCourseById',
-  async (courseId: string, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await courseService.getCourseById(courseId);
-      return data.course;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to fetch course';
-      dispatch(setMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
-  }
-);
-
-export const fetchEnrolledCourses = createAsyncThunk(
-  'courses/fetchEnrolledCourses',
-  async (_, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await courseService.getEnrolledCourses();
-      return data.courses;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to fetch enrolled courses';
-      dispatch(setMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
-  }
-);
-
-export const fetchTeachingCourses = createAsyncThunk(
-  'courses/fetchTeachingCourses',
-  async (_, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await courseService.getTeachingCourses();
-      return data.courses;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to fetch teaching courses';
-      dispatch(setMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+  async (id: string) => {
+    const response = await courseService.getCourseById(id);
+    return response.data.course;
   }
 );
 
 export const createCourse = createAsyncThunk(
   'courses/createCourse',
-  async (courseData: Partial<Course>, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await courseService.createCourse(courseData);
-      dispatch(setMessage({ type: 'success', text: 'Course created successfully' }));
-      return data.course;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to create course';
-      dispatch(setMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+  async (data: any) => {
+    const response = await courseService.createCourse(data);
+    return response.data.course;
   }
 );
 
 export const updateCourse = createAsyncThunk(
   'courses/updateCourse',
-  async ({ 
-    courseId, 
-    courseData 
-  }: { 
-    courseId: string; 
-    courseData: Partial<Course> 
-  }, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await courseService.updateCourse(courseId, courseData);
-      dispatch(setMessage({ type: 'success', text: 'Course updated successfully' }));
-      return data.course;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to update course';
-      dispatch(setMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+  async ({ id, data }: { id: string; data: any }) => {
+    const response = await courseService.updateCourse(id, data);
+    return response.data.course;
   }
 );
 
-export const enrollInCourse = createAsyncThunk(
-  'courses/enrollInCourse',
-  async (courseId: string, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await courseService.enrollInCourse(courseId);
-      dispatch(setMessage({ type: 'success', text: 'Enrolled in course successfully' }));
-      return data.enrollment;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to enroll in course';
-      dispatch(setMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+export const deleteCourse = createAsyncThunk(
+  'courses/deleteCourse',
+  async (id: string) => {
+    await courseService.deleteCourse(id);
+    return id;
   }
 );
 
-// Course slice
+export const publishCourse = createAsyncThunk(
+  'courses/publishCourse',
+  async (id: string) => {
+    const response = await courseService.publishCourse(id);
+    return response.data.course;
+  }
+);
+
+export const fetchCourseStats = createAsyncThunk(
+  'courses/fetchCourseStats',
+  async () => {
+    const response = await courseService.getCourseStats();
+    return response.data;
+  }
+);
+
 const courseSlice = createSlice({
   name: 'courses',
   initialState,
   reducers: {
+    setFilters: (state, action: PayloadAction<Partial<CourseState['filters']>>) => {
+      state.filters = { ...state.filters, ...action.payload };
+    },
+    clearFilters: (state) => {
+      state.filters = initialState.filters;
+    },
     clearCurrentCourse: (state) => {
       state.currentCourse = null;
     },
     clearError: (state) => {
       state.error = null;
-    },
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -175,110 +132,95 @@ const courseSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchCourses.fulfilled, (state, action: PayloadAction<Course[]>) => {
+      .addCase(fetchCourses.fulfilled, (state, action) => {
         state.loading = false;
-        state.courses = action.payload;
+        state.courses = action.payload.courses;
+        state.totalCount = action.payload.totalCount;
+        state.currentPage = action.payload.currentPage;
+        state.totalPages = action.payload.totalPages;
       })
       .addCase(fetchCourses.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.error.message || 'Failed to fetch courses';
       })
-      
-      // Fetch course by id
+      // Fetch my courses
+      .addCase(fetchMyCourses.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchMyCourses.fulfilled, (state, action) => {
+        state.loading = false;
+        state.myCourses = action.payload.courses;
+      })
+      .addCase(fetchMyCourses.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch my courses';
+      })
+      // Fetch course by ID
       .addCase(fetchCourseById.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
-      .addCase(fetchCourseById.fulfilled, (state, action: PayloadAction<Course>) => {
+      .addCase(fetchCourseById.fulfilled, (state, action) => {
         state.loading = false;
         state.currentCourse = action.payload;
       })
       .addCase(fetchCourseById.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.error.message || 'Failed to fetch course';
       })
-      
-      // Fetch enrolled courses
-      .addCase(fetchEnrolledCourses.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchEnrolledCourses.fulfilled, (state, action: PayloadAction<Course[]>) => {
-        state.loading = false;
-        state.enrolledCourses = action.payload;
-      })
-      .addCase(fetchEnrolledCourses.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      
-      // Fetch teaching courses
-      .addCase(fetchTeachingCourses.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchTeachingCourses.fulfilled, (state, action: PayloadAction<Course[]>) => {
-        state.loading = false;
-        state.teachingCourses = action.payload;
-      })
-      .addCase(fetchTeachingCourses.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      
       // Create course
       .addCase(createCourse.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
-      .addCase(createCourse.fulfilled, (state, action: PayloadAction<Course>) => {
+      .addCase(createCourse.fulfilled, (state, action) => {
         state.loading = false;
-        state.teachingCourses.push(action.payload);
+        state.courses.unshift(action.payload);
+        state.myCourses.unshift(action.payload);
       })
       .addCase(createCourse.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.error.message || 'Failed to create course';
       })
-      
       // Update course
-      .addCase(updateCourse.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(updateCourse.fulfilled, (state, action: PayloadAction<Course>) => {
-        state.loading = false;
-        state.currentCourse = action.payload;
-        
-        // Update in teaching courses array
-        const index = state.teachingCourses.findIndex(course => course.id === action.payload.id);
-        if (index !== -1) {
-          state.teachingCourses[index] = action.payload;
+      .addCase(updateCourse.fulfilled, (state, action) => {
+        const updatedCourse = action.payload;
+        state.courses = state.courses.map(course => 
+          course.id === updatedCourse.id ? updatedCourse : course
+        );
+        state.myCourses = state.myCourses.map(course => 
+          course.id === updatedCourse.id ? updatedCourse : course
+        );
+        if (state.currentCourse?.id === updatedCourse.id) {
+          state.currentCourse = updatedCourse;
         }
       })
-      .addCase(updateCourse.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      
-      // Enroll in course
-      .addCase(enrollInCourse.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(enrollInCourse.fulfilled, (state, action: PayloadAction<any>) => {
-        state.loading = false;
-        
-        // If we have the current course, add it to enrolled courses
-        if (state.currentCourse) {
-          state.enrolledCourses.push(state.currentCourse);
+      // Delete course
+      .addCase(deleteCourse.fulfilled, (state, action) => {
+        const courseId = action.payload;
+        state.courses = state.courses.filter(course => course.id !== courseId);
+        state.myCourses = state.myCourses.filter(course => course.id !== courseId);
+        if (state.currentCourse?.id === courseId) {
+          state.currentCourse = null;
         }
       })
-      .addCase(enrollInCourse.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
+      // Publish course
+      .addCase(publishCourse.fulfilled, (state, action) => {
+        const updatedCourse = action.payload;
+        state.courses = state.courses.map(course => 
+          course.id === updatedCourse.id ? updatedCourse : course
+        );
+        state.myCourses = state.myCourses.map(course => 
+          course.id === updatedCourse.id ? updatedCourse : course
+        );
+        if (state.currentCourse?.id === updatedCourse.id) {
+          state.currentCourse = updatedCourse;
+        }
+      })
+      // Fetch course stats
+      .addCase(fetchCourseStats.fulfilled, (state, action) => {
+        state.courseStats = action.payload;
       });
-  },
+  }
 });
 
-export const { clearCurrentCourse, clearError } = courseSlice.actions;
+export const { setFilters, clearFilters, clearCurrentCourse, clearError } = courseSlice.actions;
 export default courseSlice.reducer;

@@ -1,144 +1,79 @@
-// src/redux/slices/messageSlice.ts
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { setMessage as setUiMessage } from './uiSlice';
-import messageService from '../../services/messageService';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { messageService, Message } from '../../services/apiServices';
 
-
-// Types
-export interface Message {
-  id: string;
-  senderId: string;
-  recipientId: string;
-  courseId?: string;
-  subject: string;
-  content: string;
-  createdAt: string;
-  readAt?: string;
-  senderName?: string;
-  recipientName?: string;
-  courseName?: string;
-}
-
-interface Conversation {
-  userId: string;
-  userName: string;
-  latestMessage?: Message;
-  unreadCount: number;
-}
-
-interface MessageState {
+export interface MessageState {
   messages: Message[];
-  conversations: Conversation[];
-  currentConversation: {
-    userId: string;
-    userName: string;
-    messages: Message[];
-  } | null;
+  currentMessage: Message | null;
   loading: boolean;
   error: string | null;
+  totalCount: number;
+  unreadCount: number;
+  currentPage: number;
+  totalPages: number;
 }
 
-// Initial state
 const initialState: MessageState = {
   messages: [],
-  conversations: [],
-  currentConversation: null,
+  currentMessage: null,
   loading: false,
   error: null,
+  totalCount: 0,
+  unreadCount: 0,
+  currentPage: 1,
+  totalPages: 0
 };
 
 // Async thunks
 export const fetchMessages = createAsyncThunk(
   'messages/fetchMessages',
-  async (_, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await messageService.getMessages();
-      return data.messages;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to fetch messages';
-      dispatch(setUiMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+  async (params: any = {}) => {
+    const response = await messageService.getAllMessages(params);
+    return response.data;
   }
 );
 
-export const fetchConversations = createAsyncThunk(
-  'messages/fetchConversations',
-  async (_, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await messageService.getConversations();
-      return data.conversations;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to fetch conversations';
-      dispatch(setUiMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
-  }
-);
-
-export const fetchConversationMessages = createAsyncThunk(
-  'messages/fetchConversationMessages',
-  async (userId: string, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await messageService.getConversationMessages(userId);
-      return {
-        userId,
-        userName: data.userName,
-        messages: data.messages
-      };
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to fetch conversation messages';
-      dispatch(setUiMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+export const fetchMessageById = createAsyncThunk(
+  'messages/fetchMessageById',
+  async (id: string) => {
+    const response = await messageService.getMessageById(id);
+    return response.data.message;
   }
 );
 
 export const sendMessage = createAsyncThunk(
   'messages/sendMessage',
-  async (messageData: {
-    recipientId: string;
-    subject: string;
-    content: string;
-    courseId?: string;
-  }, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await messageService.sendMessage(messageData);
-      dispatch(setUiMessage({ type: 'success', text: 'Message sent successfully' }));
-      return data.message;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to send message';
-      dispatch(setUiMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+  async (data: any) => {
+    const response = await messageService.sendMessage(data);
+    return response.data.message;
   }
 );
 
-export const markMessageAsRead = createAsyncThunk(
-  'messages/markMessageAsRead',
-  async (messageId: string, { dispatch, rejectWithValue }) => {
-    try {
-      const data = await messageService.markMessageAsRead(messageId);
-      return data.message;
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to mark message as read';
-      dispatch(setUiMessage({ type: 'error', text: message }));
-      return rejectWithValue(message);
-    }
+export const markAsRead = createAsyncThunk(
+  'messages/markAsRead',
+  async (id: string) => {
+    await messageService.markAsRead(id);
+    return id;
   }
 );
 
-// Message slice
+export const replyToMessage = createAsyncThunk(
+  'messages/replyToMessage',
+  async ({ id, content }: { id: string; content: string }) => {
+    const response = await messageService.replyToMessage(id, { content });
+    return response.data.message;
+  }
+);
+
 const messageSlice = createSlice({
   name: 'messages',
   initialState,
   reducers: {
-    clearCurrentConversation: (state) => {
-      state.currentConversation = null;
-    },
     clearError: (state) => {
       state.error = null;
     },
+    clearCurrentMessage: (state) => {
+      state.currentMessage = null;
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -147,127 +82,51 @@ const messageSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchMessages.fulfilled, (state, action: PayloadAction<Message[]>) => {
+      .addCase(fetchMessages.fulfilled, (state, action) => {
         state.loading = false;
-        state.messages = action.payload;
+        state.messages = action.payload.messages;
+        state.totalCount = action.payload.totalCount;
+        state.unreadCount = action.payload.unreadCount || 0;
+        state.currentPage = action.payload.currentPage;
+        state.totalPages = action.payload.totalPages;
       })
       .addCase(fetchMessages.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.error.message || 'Failed to fetch messages';
       })
-      
-      // Fetch conversations
-      .addCase(fetchConversations.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+      // Fetch message by ID
+      .addCase(fetchMessageById.fulfilled, (state, action) => {
+        state.currentMessage = action.payload;
       })
-      .addCase(fetchConversations.fulfilled, (state, action: PayloadAction<Conversation[]>) => {
-        state.loading = false;
-        state.conversations = action.payload;
-      })
-      .addCase(fetchConversations.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      
-      // Fetch conversation messages
-      .addCase(fetchConversationMessages.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchConversationMessages.fulfilled, (state, action: PayloadAction<{
-        userId: string;
-        userName: string;
-        messages: Message[];
-      }>) => {
-        state.loading = false;
-        state.currentConversation = action.payload;
-        
-        // Update unread count in conversations
-        const conversationIndex = state.conversations.findIndex(
-          conversation => conversation.userId === action.payload.userId
-        );
-        if (conversationIndex !== -1) {
-          state.conversations[conversationIndex].unreadCount = 0;
-        }
-      })
-      .addCase(fetchConversationMessages.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      
       // Send message
       .addCase(sendMessage.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
-      .addCase(sendMessage.fulfilled, (state, action: PayloadAction<Message>) => {
+      .addCase(sendMessage.fulfilled, (state, action) => {
         state.loading = false;
-        
-        // Add to messages array
-        state.messages.push(action.payload);
-        
-        // Add to current conversation if it matches
-        if (state.currentConversation && 
-            state.currentConversation.userId === action.payload.recipientId) {
-          state.currentConversation.messages.push(action.payload);
-        }
-        
-        // Update conversation list
-        const conversationIndex = state.conversations.findIndex(
-          conversation => conversation.userId === action.payload.recipientId
-        );
-        
-        if (conversationIndex !== -1) {
-          state.conversations[conversationIndex].latestMessage = action.payload;
-        } else {
-          // Add new conversation
-          state.conversations.push({
-            userId: action.payload.recipientId,
-            userName: action.payload.recipientName || 'User',
-            latestMessage: action.payload,
-            unreadCount: 0
-          });
-        }
+        state.messages.unshift(action.payload);
       })
       .addCase(sendMessage.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.error.message || 'Failed to send message';
       })
-      
-      // Mark message as read
-      .addCase(markMessageAsRead.fulfilled, (state, action: PayloadAction<Message>) => {
-        // Update message in messages array
-        const messageIndex = state.messages.findIndex(
-          message => message.id === action.payload.id
+      // Mark as read
+      .addCase(markAsRead.fulfilled, (state, action) => {
+        const messageId = action.payload;
+        state.messages = state.messages.map(message => 
+          message.id === messageId ? { ...message, isRead: true } : message
         );
-        
-        if (messageIndex !== -1) {
-          state.messages[messageIndex] = action.payload;
+        if (state.currentMessage?.id === messageId) {
+          state.currentMessage.isRead = true;
         }
-        
-        // Update message in current conversation
-        if (state.currentConversation) {
-          const conversationMessageIndex = state.currentConversation.messages.findIndex(
-            message => message.id === action.payload.id
-          );
-          
-          if (conversationMessageIndex !== -1) {
-            state.currentConversation.messages[conversationMessageIndex] = action.payload;
-          }
-        }
-        
-        // Update unread count in conversation
-        const conversationIndex = state.conversations.findIndex(
-          conversation => conversation.userId === action.payload.senderId
-        );
-        
-        if (conversationIndex !== -1 && state.conversations[conversationIndex].unreadCount > 0) {
-          state.conversations[conversationIndex].unreadCount -= 1;
-        }
+        state.unreadCount = Math.max(0, state.unreadCount - 1);
+      })
+      // Reply to message
+      .addCase(replyToMessage.fulfilled, (state, action) => {
+        state.messages.unshift(action.payload);
       });
-  },
+  }
 });
 
-export const { clearCurrentConversation, clearError } = messageSlice.actions;
+export const { clearError, clearCurrentMessage } = messageSlice.actions;
 export default messageSlice.reducer;
